@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A Máquina de Destinos — Explorador de Fractais</title>
+  <title>Anomalia Fractal — Explorador com Zoom</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -24,9 +24,9 @@
       min-height: 100vh;
       padding: 16px;
     }
-    header { text-align: center; margin-bottom: 16px; max-width: 700px; }
-    h1 { font-size: 1.5rem; margin-bottom: 6px; color: var(--accent); }
-    p.subtitle { font-size: 0.95rem; color: var(--muted); }
+    header { text-align: center; margin-bottom: 14px; max-width: 760px; }
+    h1 { font-size: 1.5rem; margin-bottom: 4px; color: var(--accent); }
+    p.subtitle { font-size: 0.9rem; color: var(--muted); }
     .container {
       display: flex;
       flex-wrap: wrap;
@@ -34,7 +34,7 @@
       justify-content: center;
       align-items: flex-start;
       width: 100%;
-      max-width: 1050px;
+      max-width: 1080px;
     }
     .canvas-wrapper {
       position: relative;
@@ -53,37 +53,61 @@
       aspect-ratio: 1 / 1;
       cursor: crosshair;
     }
-    .status-badge {
+    .hud-top {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      background: rgba(15, 23, 42, 0.85);
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+      gap: 8px;
+    }
+    .badge {
+      background: rgba(15, 23, 42, 0.88);
       padding: 6px 12px;
       border-radius: 20px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
       border: 1px solid #475569;
-      pointer-events: none;
+    }
+    .zoom-toolbar {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid #475569;
+    }
+    .zoom-toolbar button {
+      padding: 6px 11px;
+      font-size: 0.82rem;
+      border-radius: 6px;
+    }
+    .zoom-toolbar button.active-mode {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
     }
     .controls {
       background: var(--panel);
-      padding: 20px;
+      padding: 18px;
       border-radius: 12px;
       width: 100%;
-      max-width: 420px;
+      max-width: 430px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       border: 1px solid #334155;
     }
-    .control-group { display: flex; flex-direction: column; gap: 6px; }
-    .control-header { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; }
+    .control-group { display: flex; flex-direction: column; gap: 5px; }
+    .control-header { display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; }
     .val-display { color: var(--accent); font-variant-numeric: tabular-nums; }
-    input[type="range"] {
-      width: 100%;
-      accent-color: var(--accent);
-      cursor: pointer;
-    }
+    input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
     .presets {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -93,21 +117,20 @@
       background: #334155;
       color: var(--text);
       border: 1px solid #475569;
-      padding: 10px;
+      padding: 9px;
       border-radius: 8px;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s, transform 0.1s;
+      transition: background 0.15s;
     }
     button:hover { background: #475569; }
-    button:active { transform: scale(0.98); }
     .legend {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--muted);
-      line-height: 1.4;
+      line-height: 1.45;
       background: rgba(15, 23, 42, 0.5);
-      padding: 12px;
+      padding: 11px;
       border-radius: 8px;
     }
     .dot-trapped { color: var(--trapped); font-weight: bold; }
@@ -117,59 +140,71 @@
 <body>
 
   <header>
-    <h1>O Jogo do Fica ou Vai Embora</h1>
-    <p class="subtitle">Ajuste a receita da máquina ou toque na imagem para ver os saltos de cada ponto.</p>
+    <h1>O Pulso do Horizonte de Eventos</h1>
+    <p class="subtitle">Solte sondas no mapa, altere o vento cósmico ou dê zoom na costa para revelar o fractal.</p>
   </header>
 
   <div class="container">
     <div class="canvas-wrapper">
       <canvas id="fractalCanvas" width="420" height="420"></canvas>
-      <div id="statusBadge" class="status-badge">Toque em um ponto para testar</div>
+      
+      <div class="hud-top">
+        <div id="statusBadge" class="badge">Toque no mapa para lançar uma sonda</div>
+        <div id="zoomBadge" class="badge" style="color: #38bdf8;">Zoom: 1.0x</div>
+      </div>
+
+      <div class="zoom-toolbar">
+        <button id="modeProbeBtn" class="active-mode" onclick="setMode('probe')">🎯 Sonda</button>
+        <button id="modePanBtn" onclick="setMode('pan')">✋ Arrastar</button>
+        <button onclick="applyZoom(1.8)">➕ Zoom</button>
+        <button onclick="applyZoom(1 / 1.8)">➖</button>
+        <button onclick="resetCamera()">🔄 1x</button>
+      </div>
     </div>
 
     <div class="controls">
       <div class="control-group">
         <div class="control-header">
-          <span>Repetições do Teste (Passos)</span>
-          <span id="iterVal" class="val-display">50</span>
+          <span>Pulsos do Teste (Nitidez do Fractal)</span>
+          <span id="iterVal" class="val-display">60</span>
         </div>
-        <input type="range" id="iterSlider" min="1" max="100" step="1" value="50">
+        <input type="range" id="iterSlider" min="1" max="300" step="1" value="60">
       </div>
 
       <div class="control-group">
         <div class="control-header">
-          <span>Botão Mágico 1 (Horizontal)</span>
-          <span id="crVal" class="val-display">-0.70</span>
+          <span>Vento Cósmico X (Horizontal)</span>
+          <span id="crVal" class="val-display">-0.700</span>
         </div>
-        <input type="range" id="crSlider" min="-1.5" max="1.5" step="0.005" value="-0.70">
+        <input type="range" id="crSlider" min="-1.5" max="1.5" step="0.002" value="-0.70">
       </div>
 
       <div class="control-group">
         <div class="control-header">
-          <span>Botão Mágico 2 (Vertical)</span>
-          <span id="ciVal" class="val-display">0.27</span>
+          <span>Vento Cósmico Y (Vertical)</span>
+          <span id="ciVal" class="val-display">0.270</span>
         </div>
-        <input type="range" id="ciSlider" min="-1.5" max="1.5" step="0.005" value="0.27">
+        <input type="range" id="ciSlider" min="-1.5" max="1.5" step="0.002" value="0.27">
       </div>
 
       <div class="control-group">
-        <span style="font-size: 0.9rem; font-weight: 600;">Cenários Prontos:</span>
+        <span style="font-size: 0.88rem; font-weight: 600;">Setores Espaciais (Cenários):</span>
         <div class="presets">
-          <button onclick="setPreset(-0.12, 0.74, 60)">Ilha de Coelhos</button>
-          <button onclick="setPreset(-0.70, 0.27, 60)">Espiral Viva</button>
-          <button onclick="setPreset(-0.80, 0.156, 75)">Beira do Abismo</button>
-          <button onclick="setPreset(0.285, 0.013, 80)">Quase Estilhaçado</button>
-          <button onclick="setPreset(-0.40, 0.65, 60)">Poeira Estelar</button>
-          <button onclick="setPreset(0.0, -0.8, 50)">Raio Elétrico</button>
+          <button onclick="setPreset(-0.12, 0.74, 70)">Ilha de Coelhos</button>
+          <button onclick="setPreset(-0.70, 0.27, 70)">Espiral Viva</button>
+          <button onclick="setPreset(-0.80, 0.156, 90)">Beira do Abismo</button>
+          <button onclick="setPreset(0.285, 0.013, 100)">Quase Estilhaçado</button>
+          <button onclick="setPreset(-0.40, 0.65, 80)">Poeira Estelar</button>
+          <button onclick="setPreset(0.0, -0.8, 60)">Raio Elétrico</button>
         </div>
       </div>
 
       <div class="legend">
-        <strong>Como funciona:</strong><br>
-        • <strong>Região Escura (Miolo):</strong> Pontos que ficam presos para sempre.<br>
-        • <strong>Cores Externas:</strong> Pontos que fogem para o infinito.<br>
-        • <span class="dot-trapped">Rastro Verde:</span> Cidadão ficou preso.<br>
-        • <span class="dot-escaped">Rastro Vermelho:</span> Cidadão fugiu da tela!
+        <strong>Guia de Exploração:</strong><br>
+        • <strong>Roda do mouse ou botão ➕:</strong> Dá zoom na costa do fractal.<br>
+        • <strong>Dica de Zoom:</strong> Ao ampliar muito, suba os <em>Pulsos do Teste</em> para 200+ para revelar novas ilhas escondidas!<br>
+        • <span class="dot-trapped">Rastro Verde:</span> Sonda ancorada na Ilha.<br>
+        • <span class="dot-escaped">Rastro Vermelho:</span> Sonda ejetada para o infinito!
       </div>
     </div>
   </div>
@@ -188,15 +223,61 @@
     const crVal = document.getElementById('crVal');
     const ciVal = document.getElementById('ciVal');
     const statusBadge = document.getElementById('statusBadge');
+    const zoomBadge = document.getElementById('zoomBadge');
 
-    // Buffer para guardar a imagem do fractal e desenhar o rastro por cima sem recalcular tudo
     const offscreen = document.createElement('canvas');
     offscreen.width = width;
     offscreen.height = height;
     const offCtx = offscreen.getContext('2d');
 
+    // Estado da câmera e interação
+    const baseScale = 1.6;
+    let scale = baseScale;
+    let centerX = 0.0;
+    let centerY = 0.0;
     let selectedPoint = null;
-    const scale = 1.6; // Janela de visualização de -1.6 a +1.6
+    let interactionMode = 'probe'; // 'probe' ou 'pan'
+
+    function screenToWorld(px, py) {
+      return {
+        x: centerX + ((px / width) - 0.5) * 2 * scale,
+        y: centerY + ((py / height) - 0.5) * 2 * scale
+      };
+    }
+
+    function worldToScreen(wx, wy) {
+      return {
+        px: (((wx - centerX) / (2 * scale)) + 0.5) * width,
+        py: (((wy - centerY) / (2 * scale)) + 0.5) * height
+      };
+    }
+
+    function setMode(mode) {
+      interactionMode = mode;
+      document.getElementById('modeProbeBtn').classList.toggle('active-mode', mode === 'probe');
+      document.getElementById('modePanBtn').classList.toggle('active-mode', mode === 'pan');
+      canvas.style.cursor = mode === 'probe' ? 'crosshair' : 'grab';
+    }
+
+    function applyZoom(factor, focusPx = width / 2, focusPy = height / 2) {
+      const before = screenToWorld(focusPx, focusPy);
+      scale /= factor;
+      const after = screenToWorld(focusPx, focusPy);
+      centerX += before.x - after.x;
+      centerY += before.y - after.y;
+
+      const zoomLevel = baseScale / scale;
+      zoomBadge.textContent = `Zoom: ${zoomLevel >= 10 ? Math.round(zoomLevel) : zoomLevel.toFixed(1)}x`;
+      renderFractal();
+    }
+
+    function resetCamera() {
+      scale = baseScale;
+      centerX = 0.0;
+      centerY = 0.0;
+      zoomBadge.textContent = 'Zoom: 1.0x';
+      renderFractal();
+    }
 
     function renderFractal() {
       const maxIter = parseInt(iterSlider.value);
@@ -211,9 +292,9 @@
       const data = imgData.data;
 
       for (let py = 0; py < height; py++) {
-        const y0 = ((py / height) - 0.5) * 2 * scale;
+        const y0 = centerY + ((py / height) - 0.5) * 2 * scale;
         for (let px = 0; px < width; px++) {
-          const x0 = ((px / width) - 0.5) * 2 * scale;
+          const x0 = centerX + ((px / width) - 0.5) * 2 * scale;
 
           let x = x0;
           let y = y0;
@@ -228,13 +309,11 @@
 
           const idx = (py * width + px) * 4;
           if (iter === maxIter) {
-            // Ponto preso (Conjunto de Júlia Preenchido)
-            data[idx] = 10;
-            data[idx + 1] = 15;
-            data[idx + 2] = 30;
+            data[idx] = 8;
+            data[idx + 1] = 12;
+            data[idx + 2] = 26;
             data[idx + 3] = 255;
           } else {
-            // Ponto fugitivo (Colorido pela velocidade de fuga)
             const t = iter / maxIter;
             data[idx] = Math.floor(9 * (1 - t) * t * t * t * 255);
             data[idx + 1] = Math.floor(15 * (1 - t) * (1 - t) * t * t * 255);
@@ -272,32 +351,27 @@
         }
       }
 
-      // Atualiza o aviso no topo da tela
       if (escaped) {
-        statusBadge.textContent = `Fugiu em ${points.length - 1} saltos!`;
+        statusBadge.textContent = `Ejetada em ${points.length - 1} pulsos!`;
         statusBadge.style.color = '#f87171';
       } else {
-        statusBadge.textContent = `Ficou preso nos ${maxIter} saltos!`;
+        statusBadge.textContent = `Ancorada por ${maxIter} pulsos!`;
         statusBadge.style.color = '#4ade80';
       }
 
-      // Desenha as linhas conectando os saltos
       ctx.beginPath();
       ctx.strokeStyle = escaped ? 'rgba(248, 113, 113, 0.85)' : 'rgba(74, 222, 128, 0.85)';
       ctx.lineWidth = 2;
 
       points.forEach((pt, index) => {
-        const px = ((pt.x / (2 * scale)) + 0.5) * width;
-        const py = ((pt.y / (2 * scale)) + 0.5) * height;
+        const { px, py } = worldToScreen(pt.x, pt.y);
         if (index === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       });
       ctx.stroke();
 
-      // Desenha as bolinhas em cada parada do salto
       points.forEach((pt, index) => {
-        const px = ((pt.x / (2 * scale)) + 0.5) * width;
-        const py = ((pt.y / (2 * scale)) + 0.5) * height;
+        const { px, py } = worldToScreen(pt.x, pt.y);
         ctx.beginPath();
         ctx.arc(px, py, index === 0 ? 6 : 3, 0, Math.PI * 2);
         ctx.fillStyle = index === 0 ? '#ffffff' : (escaped ? '#f87171' : '#4ade80');
@@ -309,34 +383,76 @@
       crSlider.value = cr;
       ciSlider.value = ci;
       iterSlider.value = iter;
-      renderFractal();
+      resetCamera();
     }
 
-    function handlePointer(e) {
+    // Eventos de Ponteiro (Sonda vs Arrastar Mapa)
+    let isDragging = false;
+    let lastClientX = 0;
+    let lastClientY = 0;
+
+    function getCanvasCoords(e) {
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-      const normX = (clientX - rect.left) / rect.width;
-      const normY = (clientY - rect.top) / rect.height;
-
-      selectedPoint = {
-        x: (normX - 0.5) * 2 * scale,
-        y: (normY - 0.5) * 2 * scale
+      return {
+        px: ((clientX - rect.left) / rect.width) * width,
+        py: ((clientY - rect.top) / rect.height) * height,
+        clientX,
+        clientY
       };
-      drawScene();
     }
 
-    let isDragging = false;
-    canvas.addEventListener('pointerdown', (e) => { isDragging = true; handlePointer(e); });
-    canvas.addEventListener('pointermove', (e) => { if (isDragging) handlePointer(e); });
-    window.addEventListener('pointerup', () => { isDragging = false; });
+    canvas.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      const { px, py, clientX, clientY } = getCanvasCoords(e);
+      lastClientX = clientX;
+      lastClientY = clientY;
+
+      if (interactionMode === 'probe') {
+        selectedPoint = screenToWorld(px, py);
+        drawScene();
+      } else {
+        canvas.style.cursor = 'grabbing';
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const { px, py, clientX, clientY } = getCanvasCoords(e);
+
+      if (interactionMode === 'probe') {
+        selectedPoint = screenToWorld(px, py);
+        drawScene();
+      } else {
+        const dx = ((clientX - lastClientX) / rect.width) * 2 * scale;
+        const dy = ((clientY - lastClientY) / rect.height) * 2 * scale;
+        centerX -= dx;
+        centerY -= dy;
+        lastClientX = clientX;
+        lastClientY = clientY;
+        renderFractal();
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDragging = false;
+      if (interactionMode === 'pan') canvas.style.cursor = 'grab';
+    });
+
+    // Zoom direto com a roda do mouse focado no cursor
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const { px, py } = getCanvasCoords(e);
+      const factor = e.deltaY < 0 ? 1.35 : 1 / 1.35;
+      applyZoom(factor, px, py);
+    }, { passive: false });
 
     iterSlider.addEventListener('input', renderFractal);
     crSlider.addEventListener('input', renderFractal);
     ciSlider.addEventListener('input', renderFractal);
 
-    // Renderização inicial
     renderFractal();
   </script>
 </body>
